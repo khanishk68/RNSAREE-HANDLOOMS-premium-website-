@@ -90,39 +90,164 @@ type User = {
   phone?: string;
 };
 
+type StoredAccount = {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  passwordHash: string;
+  createdAt: string;
+};
+
+type AuthResult = { ok: true } | { ok: false; error: string };
+
 type AuthState = {
   user: User | null;
-  login: (email: string, password: string) => boolean;
-  signup: (name: string, email: string, password: string) => boolean;
+  accounts: StoredAccount[];
+  login: (email: string, password: string) => Promise<AuthResult>;
+  signup: (
+    name: string,
+    email: string,
+    password: string
+  ) => Promise<AuthResult>;
   logout: () => void;
-  updateProfile: (data: Partial<User>) => void;
+  updateProfile: (data: Partial<User>) => AuthResult;
 };
+
+async function hashPassword(password: string) {
+  const data = new TextEncoder().encode(`rn-saree|${password}|handlooms`);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      login: (email) => {
+      accounts: [],
+
+      login: async (email, password) => {
+        const normalized = normalizeEmail(email);
+        if (!normalized || !password) {
+          return { ok: false, error: "Enter email and password" };
+        }
+
+        const account = get().accounts.find((a) => a.email === normalized);
+        if (!account) {
+          return {
+            ok: false,
+            error: "No account found with this email. Please sign up first.",
+          };
+        }
+
+        const passwordHash = await hashPassword(password);
+        if (passwordHash !== account.passwordHash) {
+          return { ok: false, error: "Incorrect password. Please try again." };
+        }
+
         set({
           user: {
-            id: "u1",
-            name: email.split("@")[0],
-            email,
+            id: account.id,
+            name: account.name,
+            email: account.email,
+            phone: account.phone,
           },
         });
-        return true;
+        return { ok: true };
       },
-      signup: (name, email) => {
-        set({ user: { id: crypto.randomUUID(), name, email } });
-        return true;
+
+      signup: async (name, email, password) => {
+        const trimmedName = name.trim();
+        const normalized = normalizeEmail(email);
+
+        if (!trimmedName || !normalized || !password) {
+          return { ok: false, error: "Please fill all fields" };
+        }
+        if (password.length < 6) {
+          return {
+            ok: false,
+            error: "Password must be at least 6 characters",
+          };
+        }
+        if (get().accounts.some((a) => a.email === normalized)) {
+          return {
+            ok: false,
+            error: "An account with this email already exists. Please sign in.",
+          };
+        }
+
+        const id = crypto.randomUUID();
+        const passwordHash = await hashPassword(password);
+        const account: StoredAccount = {
+          id,
+          name: trimmedName,
+          email: normalized,
+          passwordHash,
+          createdAt: new Date().toISOString(),
+        };
+
+        set({
+          accounts: [...get().accounts, account],
+          user: {
+            id,
+            name: trimmedName,
+            email: normalized,
+          },
+        });
+        return { ok: true };
       },
+
       logout: () => set({ user: null }),
+
       updateProfile: (data) => {
         const user = get().user;
-        if (user) set({ user: { ...user, ...data } });
+        if (!user) return { ok: false, error: "Please sign in first" };
+
+        const nextUser: User = {
+          ...user,
+          ...data,
+          email: data.email ? normalizeEmail(data.email) : user.email,
+        };
+
+        if (
+          nextUser.email !== user.email &&
+          get().accounts.some((a) => a.email === nextUser.email)
+        ) {
+          return {
+            ok: false,
+            error: "Another account already uses this email",
+          };
+        }
+
+        set({
+          user: nextUser,
+          accounts: get().accounts.map((a) =>
+            a.id === user.id
+              ? {
+                  ...a,
+                  name: nextUser.name,
+                  email: nextUser.email,
+                  phone: nextUser.phone,
+                }
+              : a
+          ),
+        });
+        return { ok: true };
       },
     }),
-    { name: "rn-auth" }
+    {
+      name: "rn-auth-v2",
+      partialize: (state) => ({
+        user: state.user,
+        accounts: state.accounts,
+      }),
+    }
   )
 );
 

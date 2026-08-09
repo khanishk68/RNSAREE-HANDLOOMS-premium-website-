@@ -62,18 +62,22 @@ export default function AccountPage() {
     );
   }
 
-  function handleLogin(e: FormEvent) {
+  async function handleLogin(e: FormEvent) {
     e.preventDefault();
     if (!email.trim() || !password) {
       toast.error("Enter email and password");
       return;
     }
-    login(email.trim(), password);
+    const result = await login(email.trim(), password);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
     toast.success("Welcome back");
     setPassword("");
   }
 
-  function handleSignup(e: FormEvent) {
+  async function handleSignup(e: FormEvent) {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !password) {
       toast.error("Please fill all fields");
@@ -87,7 +91,11 @@ export default function AccountPage() {
       toast.error("Passwords do not match");
       return;
     }
-    signup(name.trim(), email.trim(), password);
+    const result = await signup(name.trim(), email.trim(), password);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
     toast.success("Account created");
     setPassword("");
     setConfirm("");
@@ -95,11 +103,20 @@ export default function AccountPage() {
 
   function handleProfile(e: FormEvent) {
     e.preventDefault();
-    updateProfile({
+    const nextEmail = email.trim().toLowerCase();
+    if (!name.trim() || !nextEmail) {
+      toast.error("Name and email are required");
+      return;
+    }
+    const result = updateProfile({
       name: name.trim(),
-      email: email.trim(),
+      email: nextEmail,
       phone: phone.trim() || undefined,
     });
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
     toast.success("Profile updated");
   }
 

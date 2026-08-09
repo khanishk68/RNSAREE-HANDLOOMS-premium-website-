@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RN Saree Handlooms and Dress
 
-## Getting Started
+**Mana Samskruthi Mana Chenatha** · మన సంస్కృతి మన చేనేత  
+Nellore · Cash on Delivery
 
-First, run the development server:
+## Run locally
 
 ```bash
+npm install
+npx prisma db push
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Admin
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `/admin/login`
+- Email / password from `.env` (`NEXT_PUBLIC_ADMIN_EMAIL` / `NEXT_PUBLIC_ADMIN_PASSWORD`)
+- Add products, banners, categories → click **Publish live** (saves to `data/catalog.json`)
+- Upload images from your PC (saved in `public/uploads/`)
 
-## Learn More
+## Deploy (Vercel)
 
-To learn more about Next.js, take a look at the following resources:
+1. Push this repo to GitHub  
+2. Import on [vercel.com](https://vercel.com)  
+3. Set env vars from `.env.example`  
+4. Deploy  
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Important for Vercel:** the filesystem is read-only after deploy.  
+Workflow: add products & images **locally** → Publish live → commit `data/catalog.json` and `public/uploads/` → push → redeploy.  
+Then every customer sees the same catalogue.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+For live admin edits on Vercel later, connect Postgres + Cloudinary.
 
-## Deploy on Vercel
+## Contact (live on site)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Phone / WhatsApp: +91 90144 47240  
+- Email: rnsareehandlooms@gmail.com  
+- Address: Ramalingapuram, Near Mamatha Nursing Home, Nellore 524003  
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+© RN Saree Handlooms and Dress

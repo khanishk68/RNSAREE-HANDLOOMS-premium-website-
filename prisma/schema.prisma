@@ -1,0 +1,138 @@
+// Prisma schema for RN Saree Handlooms
+// Default: SQLite for local demo. Switch provider to "postgresql" + DATABASE_URL for production.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// For production PostgreSQL, change provider to "postgresql"
+// and set DATABASE_URL to your Postgres connection string.
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  phone     String?
+  role      String   @default("customer") // customer | admin
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+  wishlist  WishlistItem[]
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  banner      String?
+  products    Product[]
+  createdAt   DateTime  @default(now())
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  price       Float
+  compareAt   Float?
+  fabric      String
+  color       String
+  occasion    String
+  description String
+  story       String?
+  care        String   // JSON array string
+  images      String   // JSON array string
+  tags        String   // JSON array string
+  stock       Int      @default(0)
+  featured    Boolean  @default(false)
+  bestSeller  Boolean  @default(false)
+  limited     Boolean  @default(false)
+  isNew       Boolean  @default(false)
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orderItems  OrderItem[]
+  wishlist    WishlistItem[]
+}
+
+model Order {
+  id        String      @id @default(cuid())
+  orderCode String      @unique
+  userId    String?
+  user      User?       @relation(fields: [userId], references: [id])
+  total     Float
+  address   String
+  phone     String
+  notes     String?
+  status    String      @default("confirmed") // pending | confirmed | shipped | delivered | cancelled
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  items     OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  name      String
+  price     Float
+  quantity  Int
+  image     String?
+}
+
+model WishlistItem {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  name      String
+  location  String
+  rating    Int      @default(5)
+  text      String
+  image     String?
+  saree     String?
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Banner {
+  id        String   @id @default(cuid())
+  title     String
+  subtitle  String?
+  image     String
+  videoUrl  String?
+  link      String?
+  order     Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model BlogPost {
+  id        String   @id @default(cuid())
+  title     String
+  slug      String   @unique
+  excerpt   String
+  content   String
+  image     String?
+  author    String
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

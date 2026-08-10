@@ -1,7 +1,180 @@
 {
-  "products": [],
-  "categories": [],
+  "products": [
+    {
+      "name": "\tMangalagiri Handloom Pure Cotton Silk (LT Pattu) Saree with Silver Jari Butta Border",
+      "slug": "mangalagiri-handloom-pure-cotton-silk-lt-pattu-saree-with-silver-jari-butta-border",
+      "price": 2500,
+      "category": "cotton",
+      "fabric": "\tMangalagiri Handloom Pure Cotton (LT Pattu)",
+      "color": "Golden Beige & Sky Blue",
+      "occasion": "Wedding",
+      "description": "Mangalagiri Handloom Pure Cotton LT Pattu saree featuring an elegant all-over small butta design with a rich silver 50 Jari border. The saree combines a sophisticated wine-magenta base with a contrasting emerald-green body, creating a traditional yet luxurious look. It comes with a running and contrast-colour blouse featuring matching borders. The running and contrast pallu is finished with delicate silver butta detailing, adding a refined traditional touch.",
+      "story": "Woven in the traditional Mangalagiri handloom tradition, this saree brings together the beauty of handcrafted cotton weaving with timeless South Indian elegance. The rich wine-magenta and emerald-green combination, subtle butta motifs, and silver Jari border make it a graceful choice for weddings, festive occasions, and traditional celebrations.",
+      "care": [
+        "Dry clean only"
+      ],
+      "images": [
+        "/uploads/1786365094382-ChatGPT-Image-Aug-10-2026-06_01_26-PM.png",
+        "/uploads/1786365124011-ChatGPT-Image-Aug-10-2026-06_01_57-PM.png"
+      ],
+      "tags": [
+        "Mangalagiri",
+        "Handloom",
+        "Cotton Saree",
+        "LT Pattu",
+        "Pattu Saree",
+        "Wedding Saree",
+        "Traditional Saree",
+        "Silver Zari",
+        "Butta Saree",
+        "South Indian Saree"
+      ],
+      "stock": 1,
+      "featured": false,
+      "bestSeller": false,
+      "limited": false,
+      "isNew": true,
+      "id": "p-2952f384"
+    },
+    {
+      "name": "Mangalagiri Handloom Pure Cotton Silk (LT Pattu) Saree with Silver Jari Butta Border",
+      "slug": "mangalagiri-handloom-pure-cotton-silk-lt-pattu-saree-with-silver-jari-butta-border",
+      "price": 2500,
+      "category": "cotton",
+      "fabric": "\tMangalagiri Handloom Pure Cotton (LT Pattu)",
+      "color": "Wine Magenta & Emerald Green",
+      "occasion": "Wedding",
+      "description": "Mangalagiri handloom pure cotton silk saree with an allover small silver jari butta and 50 jari border. Comes with a running, contrast-colour blouse with matching borders and a contrast-colour pallu featuring silver butta detailing.\"",
+      "story": "\"Woven in Mangalagiri, known for its centuries-old handloom tradition, this saree blends the sheen of pattu with the comfort of pure cotton. Delicate silver jari work adorns the body and pallu, finished with a classic 50-jari border — a timeless pick for weddings and festive occasions.\"",
+      "care": [
+        "Dry clean only"
+      ],
+      "images": [
+        "/uploads/1786364611029-ChatGPT-Image-Aug-10-2026-05_52_19-PM.png",
+        "/uploads/1786365149437-ChatGPT-Image-Aug-10-2026-06_02_23-PM.png"
+      ],
+      "tags": [
+        "mangalagiri",
+        "handloom",
+        "cotton silk",
+        "pattu",
+        "jari border",
+        "silver butta",
+        "contrast blouse",
+        "wedding saree"
+      ],
+      "stock": 1,
+      "featured": false,
+      "bestSeller": false,
+      "limited": false,
+      "isNew": true,
+      "id": "p-d4088a28"
+    }
+  ],
+  "categories": [
+    {
+      "id": "c-silk",
+      "name": "Silk",
+      "slug": "silk",
+      "description": "Lustrous pure silks woven with generations of devotion.",
+      "banner": ""
+    },
+    {
+      "id": "c-banarasi",
+      "name": "Banarasi",
+      "slug": "banarasi",
+      "description": "Opulent zari weaves from the looms of Varanasi.",
+      "banner": ""
+    },
+    {
+      "id": "c-kanjeevaram",
+      "name": "Kanjeevaram",
+      "slug": "kanjeevaram",
+      "description": "South India's temple of silk — bold borders, sacred motifs.",
+      "banner": ""
+    },
+    {
+      "id": "c-cotton",
+      "name": "Cotton",
+      "slug": "cotton",
+      "description": "Breathable handloom cottons for everyday elegance.",
+      "banner": ""
+    },
+    {
+      "id": "c-designer",
+      "name": "Designer",
+      "slug": "designer",
+      "description": "Contemporary couture rooted in classical craft.",
+      "banner": ""
+    },
+    {
+      "id": "c-bridal",
+      "name": "Bridal",
+      "slug": "bridal",
+      "description": "Heirloom pieces for the most sacred of celebrations.",
+      "banner": ""
+    },
+    {
+      "id": "c-soft-silk",
+      "name": "Soft Silk",
+      "slug": "soft-silk",
+      "description": "Feather-light soft silks that drape like liquid gold.",
+      "banner": ""
+    },
+    {
+      "id": "c-linen",
+      "name": "Linen",
+      "slug": "linen",
+      "description": "Refined linen weaves for modern grace.",
+      "banner": ""
+    },
+    {
+      "id": "c-party",
+      "name": "Party Wear",
+      "slug": "party-wear",
+      "description": "Evening-ready silhouettes with luminous finishes.",
+      "banner": ""
+    },
+    {
+      "id": "c-festival",
+      "name": "Festival Collection",
+      "slug": "festival",
+      "description": "Celebrate every festival in handwoven splendour.",
+      "banner": ""
+    },
+    {
+      "id": "c-new",
+      "name": "New Arrivals",
+      "slug": "new-arrivals",
+      "description": "Fresh from the loom — just arrived.",
+      "banner": ""
+    },
+    {
+      "id": "c-best",
+      "name": "Best Sellers",
+      "slug": "best-sellers",
+      "description": "Beloved classics cherished by our patrons.",
+      "banner": ""
+    },
+    {
+      "id": "c-limited",
+      "name": "Limited Edition",
+      "slug": "limited-edition",
+      "description": "Rare weaves, numbered pieces, once in a lifetime.",
+      "banner": ""
+    }
+  ],
   "testimonials": [],
-  "banners": [],
-  "updatedAt": null
+  "banners": [
+    {
+      "title": "Mangalagiri Handloom pure LT  pattu by cotton",
+      "subtitle": "allover saree small  Butta with silver 50 Jari border ",
+      "image": "/uploads/1786365269190-ChatGPT-Image-Aug-10-2026-05_52_19-PM.png",
+      "link": "",
+      "order": 1,
+      "active": false,
+      "id": "banner-5a26c251"
+    }
+  ],
+  "updatedAt": "2026-08-10T12:34:43.046Z"
 }

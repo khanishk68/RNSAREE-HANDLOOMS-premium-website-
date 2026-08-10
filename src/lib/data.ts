@@ -68,6 +68,9 @@ export const BRAND = {
   email: "rnsareehandlooms@gmail.com",
   whatsapp: "919014447240",
   address: "Ramalingapuram, Near Mamatha Nursing Home, Nellore 524003",
+  mapsUrl: "https://maps.app.goo.gl/WGzXHESfsF3gZQnCA",
+  mapsEmbed:
+    "https://www.google.com/maps?q=14.4426518,79.9837302&z=16&output=embed",
   instagram: "",
   facebook: "",
   timings: "Mon – Sat · 10:00 AM – 8:00 PM",

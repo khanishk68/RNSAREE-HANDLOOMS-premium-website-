@@ -108,7 +108,18 @@ export function Footer() {
             {BRAND.address && (
               <div className="flex items-start gap-3">
                 <MapPin className="w-4 h-4 text-gold shrink-0 mt-0.5" />
-                <span>{BRAND.address}</span>
+                {BRAND.mapsUrl ? (
+                  <a
+                    href={BRAND.mapsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hover:text-gold transition"
+                  >
+                    {BRAND.address}
+                  </a>
+                ) : (
+                  <span>{BRAND.address}</span>
+                )}
               </div>
             )}
             {BRAND.phone && (

@@ -133,6 +133,16 @@ export function ContactClient() {
                         Visit
                       </p>
                       <p className="text-charcoal leading-relaxed">{BRAND.address}</p>
+                      {BRAND.mapsUrl && (
+                        <a
+                          href={BRAND.mapsUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-block mt-3 text-[11px] tracking-[0.2em] uppercase text-maroon border-b border-gold/50 pb-0.5 hover:border-gold transition-colors"
+                        >
+                          Open in Google Maps
+                        </a>
+                      )}
                     </div>
                   </div>
                 </Reveal>
@@ -199,17 +209,33 @@ export function ContactClient() {
             </div>
           </div>
 
-          {BRAND.address && (
+          {(BRAND.mapsEmbed || BRAND.address) && (
             <Reveal className="mt-16">
               <div className="overflow-hidden border border-gold/25 aspect-[21/9] min-h-[240px] bg-cream">
                 <iframe
-                  title="Store location"
-                  className="w-full h-full min-h-[240px] grayscale-[30%] contrast-110"
+                  title="RN Saree Handlooms location"
+                  className="w-full h-full min-h-[240px] grayscale-[20%] contrast-110"
                   loading="lazy"
                   referrerPolicy="no-referrer-when-downgrade"
-                  src={`https://www.google.com/maps?q=${encodeURIComponent(BRAND.address)}&output=embed`}
+                  allowFullScreen
+                  src={
+                    BRAND.mapsEmbed ||
+                    `https://www.google.com/maps?q=${encodeURIComponent(BRAND.address)}&output=embed`
+                  }
                 />
               </div>
+              {BRAND.mapsUrl && (
+                <p className="mt-4 text-center">
+                  <a
+                    href={BRAND.mapsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] tracking-[0.2em] uppercase text-maroon hover:text-gold transition-colors"
+                  >
+                    View on Google Maps
+                  </a>
+                </p>
+              )}
             </Reveal>
           )}
         </div>

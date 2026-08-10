@@ -1,9 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ProductGalleryProps = {
@@ -14,11 +14,9 @@ type ProductGalleryProps = {
 export function ProductGallery({ images, alt }: ProductGalleryProps) {
   const safeImages = images.filter(Boolean);
   const [active, setActive] = useState(0);
-  const [mode360, setMode360] = useState(false);
   const [zooming, setZooming] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
-  const dragRef = useRef<{ startX: number; startIndex: number } | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
 
   const go = useCallback(
     (dir: number) => {
@@ -47,30 +45,9 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
     );
   }
 
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (!mode360) return;
-    dragRef.current = { startX: e.clientX, startIndex: active };
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-  };
-
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!mode360 || !dragRef.current) return;
-    const delta = e.clientX - dragRef.current.startX;
-    const step = 48;
-    const steps = Math.round(delta / step);
-    const next =
-      (dragRef.current.startIndex - steps + safeImages.length * 20) %
-      safeImages.length;
-    setActive(next);
-  };
-
-  const onPointerUp = () => {
-    dragRef.current = null;
-  };
-
   const onZoomMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (mode360 || !containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
     setZoomPos({ x, y });
@@ -79,22 +56,15 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
   return (
     <div className="space-y-4">
       <div
-        ref={containerRef}
-        className={cn(
-          "relative aspect-[3/4] overflow-hidden bg-cream",
-          mode360 ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in"
-        )}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        onMouseEnter={() => !mode360 && setZooming(true)}
+        ref={setContainer}
+        className="relative aspect-[3/4] cursor-zoom-in overflow-hidden bg-cream"
+        onMouseEnter={() => setZooming(true)}
         onMouseLeave={() => setZooming(false)}
         onMouseMove={onZoomMove}
       >
         <AnimatePresence mode="wait">
           <motion.div
-            key={`${active}-${mode360}`}
+            key={active}
             className="absolute inset-0"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -109,7 +79,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
               sizes="(max-width:1024px) 100vw, 50vw"
               className={cn(
                 "object-cover select-none",
-                !mode360 && zooming && "opacity-0"
+                zooming && "opacity-0"
               )}
               draggable={false}
               unoptimized={safeImages[active]?.startsWith("/uploads/")}
@@ -117,9 +87,9 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
           </motion.div>
         </AnimatePresence>
 
-        {!mode360 && zooming && (
+        {zooming && (
           <div
-            className="absolute inset-0 hidden md:block pointer-events-none"
+            className="pointer-events-none absolute inset-0 hidden md:block"
             style={{
               backgroundImage: `url(${safeImages[active]})`,
               backgroundSize: "200%",
@@ -129,48 +99,39 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
           />
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-matte/25 via-transparent to-transparent pointer-events-none" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-matte/25 via-transparent to-transparent" />
 
-        {mode360 && (
-          <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none">
-            <span className="text-[10px] tracking-[0.3em] uppercase text-gold bg-matte/60 px-3 py-1.5 backdrop-blur-sm">
-              Drag to rotate · 360°
-            </span>
-            <span className="text-[10px] tracking-[0.2em] uppercase text-pearl/80 bg-matte/50 px-2 py-1">
-              {active + 1}/{safeImages.length}
-            </span>
+        {safeImages.length > 1 && (
+          <div className="pointer-events-none absolute inset-y-0 left-0 right-0 flex items-center justify-between px-3">
+            <button
+              type="button"
+              onClick={() => go(-1)}
+              className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full glass text-pearl transition-colors hover:text-gold"
+              aria-label="Previous image"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => go(1)}
+              className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full glass text-pearl transition-colors hover:text-gold"
+              aria-label="Next image"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
           </div>
         )}
-
-        <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between px-3 pointer-events-none">
-          <button
-            type="button"
-            onClick={() => go(-1)}
-            className="pointer-events-auto w-10 h-10 rounded-full glass text-pearl flex items-center justify-center hover:text-gold transition-colors"
-            aria-label="Previous image"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => go(1)}
-            className="pointer-events-auto w-10 h-10 rounded-full glass text-pearl flex items-center justify-center hover:text-gold transition-colors"
-            aria-label="Next image"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-2 overflow-x-auto pb-1 flex-1">
+      {safeImages.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
           {safeImages.map((src, i) => (
             <button
               key={src + i}
               type="button"
               onClick={() => setActive(i)}
               className={cn(
-                "relative shrink-0 w-16 h-20 md:w-20 md:h-24 overflow-hidden border transition-all",
+                "relative h-20 w-16 shrink-0 overflow-hidden border transition-all md:h-24 md:w-20",
                 active === i
                   ? "border-gold opacity-100"
                   : "border-transparent opacity-60 hover:opacity-100"
@@ -188,21 +149,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
             </button>
           ))}
         </div>
-
-        <button
-          type="button"
-          onClick={() => setMode360((m) => !m)}
-          className={cn(
-            "shrink-0 inline-flex items-center gap-2 px-4 py-2.5 text-[10px] tracking-[0.25em] uppercase border transition-colors",
-            mode360
-              ? "border-gold bg-maroon text-gold"
-              : "border-gold/40 text-maroon hover:border-gold hover:bg-maroon/5"
-          )}
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          360° View
-        </button>
-      </div>
+      )}
     </div>
   );
 }

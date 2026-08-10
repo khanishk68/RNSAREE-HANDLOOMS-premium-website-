@@ -195,7 +195,13 @@ export const useAdminStore = create<AdminState>()(
 
       addProduct: (product) => {
         const id = product.id || `p-${crypto.randomUUID().slice(0, 8)}`;
-        const slug = product.slug || slugFromName(product.name);
+        let slug = product.slug || slugFromName(product.name);
+        const existing = new Set(get().products.map((p) => p.slug));
+        if (existing.has(slug)) {
+          let n = 2;
+          while (existing.has(`${slug}-${n}`)) n += 1;
+          slug = `${slug}-${n}`;
+        }
         const next: Product = { ...product, id, slug };
         set({ products: [next, ...get().products] });
         schedulePublish(get);

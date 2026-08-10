@@ -40,9 +40,8 @@ prisma/dev.db-journal
 *.db
 *.db-journal
 
-# uploaded product / banner images (keep folder)
-/public/uploads/*
-!/public/uploads/.gitkeep
+# Product images in public/uploads are committed so Vercel can serve them.
+# (Vercel filesystem is read-only — Admin uploads only stick after git push.)
 
 # vercel
 .vercel

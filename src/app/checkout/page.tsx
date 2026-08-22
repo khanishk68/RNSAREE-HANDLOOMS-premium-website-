@@ -69,17 +69,17 @@ export default function CheckoutPage() {
     );
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const name = fullName.trim();
-    const ph = phone.trim();
+    const ph = phone.trim().replace(/\s+/g, "");
     const addr = address.trim();
 
     if (!name || name.length < 2) {
       toast.error("Please enter your full name");
       return;
     }
-    if (!/^[6-9]\d{9}$/.test(ph.replace(/\s+/g, ""))) {
+    if (!/^[6-9]\d{9}$/.test(ph)) {
       toast.error("Enter a valid 10-digit Indian mobile number");
       return;
     }
@@ -89,37 +89,59 @@ export default function CheckoutPage() {
     }
 
     setSubmitting(true);
-    const order = placeOrder({
-      items,
-      total: cartTotal,
-      phone: ph.replace(/\s+/g, ""),
-      address: `${name}\n${addr}`,
-      notes: notes.trim() || undefined,
-    });
-    upsertOrder({
-      id: order.id,
-      customerName: name,
-      customerEmail: user?.email || "",
-      phone: ph.replace(/\s+/g, ""),
-      address: addr,
-      total: cartTotal,
-      status: "confirmed",
-      createdAt: order.createdAt,
-      notes: notes.trim() || undefined,
-      items: items.map((i) => ({
-        name: i.product.name,
-        quantity: i.quantity,
-        price: i.product.price,
-        image: i.product.images[0],
-      })),
-    });
-    clearCart();
-    toast.success("Order placed — Cash on Delivery");
-    router.push(`/order-confirmation/${order.id}`);
+    try {
+      const order = placeOrder({
+        items,
+        total: cartTotal,
+        phone: ph,
+        address: `${name}\n${addr}`,
+        notes: notes.trim() || undefined,
+      });
+      const adminOrder = {
+        id: order.id,
+        customerName: name,
+        customerEmail: user?.email || "",
+        phone: ph,
+        address: addr,
+        total: cartTotal,
+        status: "confirmed" as const,
+        createdAt: order.createdAt,
+        notes: notes.trim() || undefined,
+        items: items.map((i) => ({
+          name: i.product.name,
+          quantity: i.quantity,
+          price: i.product.price,
+          image: i.product.images[0],
+        })),
+      };
+      upsertOrder(adminOrder);
+
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order: adminOrder }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        toast.error(
+          data.error ||
+            "Could not save your COD order. Please try again or call us."
+        );
+        setSubmitting(false);
+        return;
+      }
+
+      clearCart();
+      toast.success("Order placed — Cash on Delivery");
+      router.push(`/order-confirmation/${order.id}`);
+    } catch {
+      toast.error("Could not place order. Check your connection and try again.");
+      setSubmitting(false);
+    }
   }
 
   return (
-    <div className="relative min-h-[80vh] pt-28 md:pt-32 pb-24 overflow-hidden">
+    <div className="relative min-h-[80vh] pt-28 md:pt-32 pb-24">
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -128,7 +150,7 @@ export default function CheckoutPage() {
         }}
       />
 
-      <div className="relative max-w-5xl mx-auto px-4 md:px-8">
+      <div className="relative mx-auto w-full max-w-6xl px-4 md:px-8">
         <Reveal>
           <Link
             href="/cart"
@@ -144,7 +166,7 @@ export default function CheckoutPage() {
           />
         </Reveal>
 
-        <div className="grid lg:grid-cols-[1fr_340px] gap-10 lg:gap-12">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] lg:gap-10">
           <Reveal delay={0.08}>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="luxury-card p-6 md:p-8 space-y-5">
@@ -252,15 +274,14 @@ export default function CheckoutPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="luxury-btn w-full disabled:opacity-60"
+                className="flex w-full items-center justify-center border border-gold bg-maroon-deep px-4 py-3.5 text-[11px] uppercase tracking-[0.18em] text-gold-soft transition-opacity hover:opacity-90 disabled:opacity-60"
               >
                 {submitting ? "Placing Order…" : "Place Order · COD"}
               </button>
             </form>
           </Reveal>
 
-          <Reveal delay={0.12}>
-            <aside className="lg:sticky lg:top-28 luxury-card p-6 h-fit">
+          <aside className="luxury-card h-fit w-full min-w-0 p-5 md:p-6 lg:sticky lg:top-28">
               <h3 className="font-serif text-2xl text-charcoal mb-5">
                 Your Bag
               </h3>
@@ -302,7 +323,6 @@ export default function CheckoutPage() {
                 Authenticated handloom · Secure COD checkout
               </div>
             </aside>
-          </Reveal>
         </div>
       </div>
     </div>

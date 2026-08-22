@@ -1,0 +1,23 @@
+{
+  "orders": [
+    {
+      "id": "RN73367403",
+      "customerName": "khanishk",
+      "customerEmail": "tkhanishk0@gmail.com",
+      "phone": "9666877792",
+      "address": "ramalingapuram near mamathanersing home nellore 524003",
+      "total": 2500,
+      "status": "confirmed",
+      "createdAt": "2026-08-18T17:16:07.403Z",
+      "items": [
+        {
+          "name": "\tMangalagiri Handloom Pure Cotton Silk (LT Pattu) Saree with Silver Jari Butta Border",
+          "quantity": 1,
+          "price": 2500,
+          "image": "/uploads/1786365094382-ChatGPT-Image-Aug-10-2026-06_01_26-PM.png"
+        }
+      ]
+    }
+  ],
+  "updatedAt": "2026-08-18T17:16:12.632Z"
+}

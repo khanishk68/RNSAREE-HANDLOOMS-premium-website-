@@ -5,8 +5,16 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const catalog = await readCatalog();
-  return NextResponse.json({ ok: true, catalog });
+  try {
+    const catalog = await readCatalog();
+    return NextResponse.json({ ok: true, catalog });
+  } catch (err) {
+    console.error("Catalog read failed:", err);
+    return NextResponse.json(
+      { ok: false, error: "Could not load catalogue from database" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function PUT(req: NextRequest) {
@@ -25,7 +33,7 @@ export async function PUT(req: NextRequest) {
       {
         ok: false,
         error:
-          "Could not save catalogue. On Vercel’s read-only filesystem, publish locally then redeploy, or connect a database.",
+          "Could not save catalogue to the database. Check DATABASE_URL and try again.",
       },
       { status: 500 }
     );

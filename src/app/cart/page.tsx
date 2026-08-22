@@ -37,7 +37,7 @@ export default function CartPage() {
   const itemCount = count();
 
   return (
-    <div className="relative min-h-[80vh] pt-28 md:pt-32 pb-24 overflow-hidden">
+    <div className="relative min-h-[80vh] pt-28 md:pt-32 pb-24">
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -46,7 +46,7 @@ export default function CartPage() {
         }}
       />
 
-      <div className="relative max-w-5xl mx-auto px-4 md:px-8">
+      <div className="relative mx-auto w-full max-w-6xl px-4 md:px-8">
         <Reveal>
           <SectionHeading
             eyebrow="Your Selection"
@@ -87,9 +87,9 @@ export default function CartPage() {
               key="filled"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="grid lg:grid-cols-[1fr_320px] gap-10 lg:gap-12"
+              className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] lg:gap-10"
             >
-              <ul className="space-y-5">
+              <ul className="min-w-0 space-y-5">
                 {items.map((item, i) => (
                   <Reveal key={item.product.id} delay={i * 0.06}>
                     <li className="luxury-card flex gap-4 md:gap-6 p-4 md:p-5">
@@ -103,16 +103,17 @@ export default function CartPage() {
                           fill
                           sizes="128px"
                           className="object-cover"
+                          unoptimized={item.product.images[0]?.startsWith("/uploads/")}
                         />
                       </Link>
                       <div className="flex-1 flex flex-col min-w-0">
                         <div className="flex justify-between gap-3">
-                          <div>
+                          <div className="min-w-0">
                             <p className="text-[10px] tracking-[0.25em] uppercase text-muted">
                               {item.product.fabric}
                             </p>
                             <Link href={`/product/${item.product.slug}`}>
-                              <h3 className="font-serif text-xl md:text-2xl text-charcoal hover:text-maroon transition-colors mt-0.5 truncate">
+                              <h3 className="font-serif text-xl md:text-2xl text-charcoal hover:text-maroon transition-colors mt-0.5 line-clamp-2">
                                 {item.product.name}
                               </h3>
                             </Link>
@@ -131,7 +132,7 @@ export default function CartPage() {
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
-                        <div className="mt-auto pt-4 flex items-center justify-between">
+                        <div className="mt-auto pt-4 flex items-center justify-between gap-3">
                           <div className="inline-flex items-center border border-gold/40">
                             <button
                               onClick={() =>
@@ -171,53 +172,51 @@ export default function CartPage() {
                 ))}
               </ul>
 
-              <Reveal delay={0.15}>
-                <aside className="lg:sticky lg:top-28 luxury-card p-6 md:p-7 h-fit">
-                  <h3 className="font-serif text-2xl text-charcoal mb-6">
-                    Order Summary
-                  </h3>
-                  <div className="space-y-3 text-sm">
-                    <div className="flex justify-between text-muted">
-                      <span>Subtotal</span>
-                      <span className="text-charcoal">{formatINR(cartTotal)}</span>
-                    </div>
-                    <div className="flex justify-between text-muted">
-                      <span>Shipping</span>
-                      <span className="text-gold">Calculated at delivery</span>
-                    </div>
-                    <div className="h-px bg-gradient-to-r from-transparent via-gold/50 to-transparent my-2" />
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-[11px] tracking-[0.2em] uppercase text-maroon">
-                        Total
-                      </span>
-                      <span className="font-serif text-3xl text-maroon">
-                        {formatINR(cartTotal)}
-                      </span>
-                    </div>
+              <aside className="luxury-card h-fit w-full min-w-0 p-5 md:p-6 lg:sticky lg:top-28">
+                <h3 className="font-serif text-2xl text-charcoal mb-6">
+                  Order Summary
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between gap-4 text-muted">
+                    <span>Subtotal</span>
+                    <span className="text-charcoal">{formatINR(cartTotal)}</span>
                   </div>
-                  <div className="mt-6 p-3 border border-gold/30 bg-cream/60 text-center">
-                    <p className="text-[11px] tracking-[0.15em] uppercase text-maroon">
-                      Cash on Delivery Only
-                    </p>
-                    <p className="text-xs text-muted mt-1">
-                      Pay when your saree arrives
-                    </p>
+                  <div className="flex justify-between gap-4 text-muted">
+                    <span>Shipping</span>
+                    <span className="text-right text-gold">At delivery</span>
                   </div>
-                  <Link
-                    href="/checkout"
-                    className="luxury-btn w-full mt-6 inline-flex"
-                  >
-                    Proceed to Checkout
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                  <Link
-                    href="/shop"
-                    className="block text-center mt-4 text-[11px] tracking-[0.2em] uppercase text-muted hover:text-maroon transition-colors"
-                  >
-                    Continue Shopping
-                  </Link>
-                </aside>
-              </Reveal>
+                  <div className="h-px bg-gradient-to-r from-transparent via-gold/50 to-transparent my-2" />
+                  <div className="flex justify-between items-baseline gap-4">
+                    <span className="text-[11px] tracking-[0.2em] uppercase text-maroon">
+                      Total
+                    </span>
+                    <span className="font-serif text-3xl text-maroon">
+                      {formatINR(cartTotal)}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-6 p-3 border border-gold/30 bg-cream/60 text-center">
+                  <p className="text-[11px] tracking-[0.15em] uppercase text-maroon">
+                    Cash on Delivery Only
+                  </p>
+                  <p className="text-xs text-muted mt-1">
+                    Pay when your saree arrives
+                  </p>
+                </div>
+                <Link
+                  href="/checkout"
+                  className="mt-6 flex w-full items-center justify-center gap-2 border border-gold bg-maroon-deep px-4 py-3.5 text-center text-[11px] uppercase tracking-[0.18em] text-gold-soft transition-opacity hover:opacity-90"
+                >
+                  Proceed to Checkout
+                  <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+                </Link>
+                <Link
+                  href="/shop"
+                  className="block text-center mt-4 text-[11px] tracking-[0.2em] uppercase text-muted hover:text-maroon transition-colors"
+                >
+                  Continue Shopping
+                </Link>
+              </aside>
             </motion.div>
           )}
         </AnimatePresence>

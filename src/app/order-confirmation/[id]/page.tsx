@@ -18,6 +18,22 @@ const statusLabel: Record<Order["status"], string> = {
   cancelled: "Cancelled",
 };
 
+type ConfirmView = {
+  id: string;
+  total: number;
+  address: string;
+  phone: string;
+  notes?: string;
+  status: Order["status"];
+  createdAt: string;
+  items: {
+    name: string;
+    quantity: number;
+    price: number;
+    image?: string;
+  }[];
+};
+
 export default function OrderConfirmationPage({
   params,
 }: {
@@ -25,12 +41,76 @@ export default function OrderConfirmationPage({
 }) {
   const { id } = use(params);
   const [mounted, setMounted] = useState(false);
+  const [remote, setRemote] = useState<ConfirmView | null>(null);
+  const [loadingRemote, setLoadingRemote] = useState(true);
   const orders = useOrderStore((s) => s.orders);
-  const order = orders.find((o) => o.id === id);
+  const local = orders.find((o) => o.id === id);
 
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/orders?id=${encodeURIComponent(id)}`, {
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok && data.order) {
+          const o = data.order;
+          setRemote({
+            id: o.id,
+            total: o.total,
+            address: `${o.customerName}\n${o.address}`,
+            phone: o.phone,
+            notes: o.notes,
+            status: o.status,
+            createdAt: o.createdAt,
+            items: o.items.map(
+              (i: {
+                name: string;
+                quantity: number;
+                price: number;
+                image?: string;
+              }) => ({
+                name: i.name,
+                quantity: i.quantity,
+                price: i.price,
+                image: i.image,
+              })
+            ),
+          });
+        }
+      } catch {
+        /* local only */
+      } finally {
+        if (!cancelled) setLoadingRemote(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const order: ConfirmView | undefined = local
+    ? {
+        id: local.id,
+        total: local.total,
+        address: local.address,
+        phone: local.phone,
+        notes: local.notes,
+        status: local.status,
+        createdAt: local.createdAt,
+        items: local.items.map((i) => ({
+          name: i.product.name,
+          quantity: i.quantity,
+          price: i.product.price,
+          image: i.product.images[0],
+        })),
+      }
+    : remote ?? undefined;
+
+  if (!mounted || (loadingRemote && !order)) {
     return (
       <div className="min-h-[70vh] pt-32 pb-20 px-4">
         <div className="max-w-2xl mx-auto h-48 skeleton" />
@@ -128,24 +208,26 @@ export default function OrderConfirmationPage({
             <p className="text-xs text-muted mt-4 mb-6">{dateStr}</p>
 
             <ul className="space-y-4">
-              {order.items.map((item) => (
-                <li key={item.product.id} className="flex gap-4">
+              {order.items.map((item, idx) => (
+                <li key={`${item.name}-${idx}`} className="flex gap-4">
                   <div className="relative w-16 aspect-[3/4] shrink-0 overflow-hidden bg-cream">
-                    <Image
-                      src={item.product.images[0]}
-                      alt={item.product.name}
-                      fill
-                      sizes="64px"
-                      className="object-cover"
-                    />
+                    {item.image ? (
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        fill
+                        sizes="64px"
+                        className="object-cover"
+                      />
+                    ) : null}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-serif text-lg text-charcoal">
-                      {item.product.name}
+                      {item.name}
                     </p>
                     <p className="text-xs text-muted mt-0.5">
                       Qty {item.quantity} ·{" "}
-                      {formatINR(item.product.price * item.quantity)}
+                      {formatINR(item.price * item.quantity)}
                     </p>
                   </div>
                 </li>

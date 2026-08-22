@@ -13,12 +13,23 @@ import {
   MapPin,
 } from "lucide-react";
 import { useOrderStore, type Order } from "@/lib/store";
+import type { AdminOrder } from "@/lib/admin-store";
 import { formatINR } from "@/lib/utils";
 import { Reveal, SectionHeading } from "@/components/ui/reveal";
 import { BRAND } from "@/lib/data";
 
 const inputClass =
   "w-full bg-pearl/80 border border-gold/35 px-4 py-3.5 text-sm text-charcoal placeholder:text-muted/50 outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 transition-colors";
+
+type TrackResult = {
+  id: string;
+  total: number;
+  address: string;
+  phone: string;
+  status: Order["status"];
+  createdAt: string;
+  itemCount: number;
+};
 
 const statusMeta: Record<
   Order["status"],
@@ -33,38 +44,84 @@ const statusMeta: Record<
 
 const steps = ["Pending", "Confirmed", "Shipped", "Delivered"] as const;
 
+function fromLocal(o: Order): TrackResult {
+  return {
+    id: o.id,
+    total: o.total,
+    address: o.address,
+    phone: o.phone,
+    status: o.status,
+    createdAt: o.createdAt,
+    itemCount: o.items.length,
+  };
+}
+
+function fromAdmin(o: AdminOrder): TrackResult {
+  return {
+    id: o.id,
+    total: o.total,
+    address: `${o.customerName}\n${o.address}`,
+    phone: o.phone,
+    status: o.status,
+    createdAt: o.createdAt,
+    itemCount: o.items.reduce((n, i) => n + i.quantity, 0),
+  };
+}
+
 function TrackOrderContent() {
   const searchParams = useSearchParams();
   const orders = useOrderStore((s) => s.orders);
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
-  const [result, setResult] = useState<Order | null | undefined>(undefined);
+  const [result, setResult] = useState<TrackResult | null | undefined>(
+    undefined
+  );
   const [searched, setSearched] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => setMounted(true), []);
+
+  async function lookup(id: string) {
+    const local = orders.find((o) => o.id.toLowerCase() === id.toLowerCase());
+    if (local) {
+      setResult(fromLocal(local));
+      setSearched(true);
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/orders?id=${encodeURIComponent(id)}`, {
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.order) {
+        setResult(fromAdmin(data.order as AdminOrder));
+      } else if (!local) {
+        setResult(null);
+      }
+    } catch {
+      if (!local) setResult(null);
+    } finally {
+      setLoading(false);
+      setSearched(true);
+    }
+  }
 
   useEffect(() => {
     if (!mounted) return;
     const id = searchParams.get("id");
     if (id) {
       setQuery(id);
-      const found = orders.find(
-        (o) => o.id.toLowerCase() === id.toLowerCase()
-      );
-      setResult(found ?? null);
-      setSearched(true);
+      void lookup(id);
     }
-  }, [mounted, searchParams, orders]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run when URL id is present
+  }, [mounted, searchParams]);
 
   function handleSearch(e: FormEvent) {
     e.preventDefault();
     const id = query.trim();
     if (!id) return;
-    const found = orders.find(
-      (o) => o.id.toLowerCase() === id.toLowerCase()
-    );
-    setResult(found ?? null);
-    setSearched(true);
+    void lookup(id);
   }
 
   if (!mounted) {
@@ -101,9 +158,13 @@ function TrackOrderContent() {
               autoComplete="off"
               required
             />
-            <button type="submit" className="luxury-btn shrink-0 inline-flex">
+            <button
+              type="submit"
+              disabled={loading}
+              className="luxury-btn shrink-0 inline-flex disabled:opacity-60"
+            >
               <Search className="w-3.5 h-3.5" />
-              Track
+              {loading ? "Looking…" : "Track"}
             </button>
           </div>
           <p className="text-xs text-muted mt-4 text-center leading-relaxed">
@@ -233,8 +294,8 @@ function TrackOrderContent() {
                 </p>
               </div>
               <p className="text-muted text-xs pl-7">
-                {result.items.length} item
-                {result.items.length === 1 ? "" : "s"} · Phone {result.phone}
+                {result.itemCount} item
+                {result.itemCount === 1 ? "" : "s"} · Phone {result.phone} · COD
               </p>
             </div>
 

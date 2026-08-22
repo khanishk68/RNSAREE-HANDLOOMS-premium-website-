@@ -10,7 +10,6 @@ import { AdminButton, AdminInput } from "@/components/admin/ui";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const adminLogin = useAdminStore((s) => s.adminLogin);
   const admin = useAdminStore((s) => s.admin);
   const hydrated = useAdminStore((s) => s.hydrated);
   const [email, setEmail] = useState("");
@@ -31,8 +30,14 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      const ok = adminLogin(email, password) && data.ok;
-      if (ok) {
+      if (res.ok && data.ok) {
+        useAdminStore.setState({
+          admin: {
+            email: data.admin?.email || email,
+            name: data.admin?.name || "RN Admin",
+            loggedInAt: new Date().toISOString(),
+          },
+        });
         toast.success("Welcome back");
         router.replace("/admin");
       } else {

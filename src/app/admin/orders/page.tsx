@@ -52,6 +52,27 @@ export default function AdminOrdersPage() {
     }
   }, [customerOrders, user, upsertOrder]);
 
+  // Load orders saved on the server (local / non-Vercel hosts)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/orders", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled || !Array.isArray(data.orders)) return;
+        for (const o of data.orders as AdminOrder[]) {
+          upsertOrder(o);
+        }
+      } catch {
+        /* keep local */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [upsertOrder]);
+
   const orders = useMemo(
     () =>
       [...adminOrders].sort(
@@ -64,20 +85,26 @@ export default function AdminOrdersPage() {
   function setStatus(id: string, status: AdminOrderStatus) {
     updateOrderStatus(id, status);
     if (customerOrders.some((o) => o.id === id)) {
-      if (status !== "cancelled") {
-        updateCustomerStatus(id, status);
-      } else {
-        updateCustomerStatus(id, "cancelled");
-      }
+      updateCustomerStatus(id, status);
     }
-    toast.success(`Order ${id} → ${status}`);
+    void fetch("/api/orders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        toast.error("Could not save status to database");
+        return;
+      }
+      toast.success(`Order ${id} → ${status}`);
+    });
   }
 
   return (
     <div>
       <AdminPageHeader
         title="Orders"
-        description="Track and update fulfilment status for customer orders."
+        description="COD orders from the live storefront — stored in your Postgres database."
       />
 
       <div className="mb-4 flex flex-wrap gap-2 text-xs text-white/40">

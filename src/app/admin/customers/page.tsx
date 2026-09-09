@@ -1,8 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
-import { useAdminStore } from "@/lib/admin-store";
-import { useAuthStore, useOrderStore } from "@/lib/store";
+import { useEffect, useState } from "react";
 import { formatINR } from "@/lib/utils";
 import { AdminCard, AdminPageHeader } from "@/components/admin/ui";
 import { Users } from "lucide-react";
@@ -18,87 +16,52 @@ type CustomerRow = {
 };
 
 export default function AdminCustomersPage() {
-  const adminOrders = useAdminStore((s) => s.orders);
-  const customerOrders = useOrderStore((s) => s.orders);
-  const user = useAuthStore((s) => s.user);
+  const [customers, setCustomers] = useState<CustomerRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const customers = useMemo(() => {
-    const map = new Map<string, CustomerRow>();
-
-    for (const o of adminOrders) {
-      const key = o.customerEmail.toLowerCase();
-      const existing = map.get(key);
-      if (existing) {
-        existing.orders += 1;
-        existing.spent += o.status === "cancelled" ? 0 : o.total;
-        if (new Date(o.createdAt) > new Date(existing.lastOrder)) {
-          existing.lastOrder = o.createdAt;
-          existing.phone = o.phone || existing.phone;
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/customers", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (!res.ok || !Array.isArray(data.customers)) {
+          if (!cancelled) {
+            setError(data.error || "Could not load customers");
+          }
+          return;
         }
-      } else {
-        map.set(key, {
-          key,
-          name: o.customerName,
-          email: o.customerEmail,
-          phone: o.phone,
-          orders: 1,
-          spent: o.status === "cancelled" ? 0 : o.total,
-          lastOrder: o.createdAt,
-        });
+        if (!cancelled) {
+          setCustomers(data.customers);
+          setError(null);
+        }
+      } catch {
+        if (!cancelled) setError("Could not load customers");
       }
-    }
-
-    // Include logged-in auth user if they have checkout orders
-    if (user && customerOrders.length) {
-      const key = user.email.toLowerCase();
-      const existing = map.get(key);
-      const spent = customerOrders
-        .filter((o) => o.status !== "cancelled")
-        .reduce((s, o) => s + o.total, 0);
-      if (existing) {
-        // already counted via sync; ensure name
-        existing.name = user.name || existing.name;
-        existing.phone = user.phone || existing.phone;
-      } else {
-        map.set(key, {
-          key,
-          name: user.name,
-          email: user.email,
-          phone: user.phone || customerOrders[0]?.phone || "—",
-          orders: customerOrders.length,
-          spent,
-          lastOrder: customerOrders[0]?.createdAt || new Date().toISOString(),
-        });
-      }
-    } else if (user) {
-      const key = user.email.toLowerCase();
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          name: user.name,
-          email: user.email,
-          phone: user.phone || "—",
-          orders: 0,
-          spent: 0,
-          lastOrder: "—",
-        });
-      }
-    }
-
-    return [...map.values()].sort((a, b) => b.spent - a.spent);
-  }, [adminOrders, customerOrders, user]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div>
       <AdminPageHeader
         title="Customers"
-        description="Customers from store orders and account sign-ins."
+        description="Customers from store orders in Postgres (User records + COD checkout)."
       />
 
       <div className="mb-4 flex items-center gap-2 text-sm text-white/45">
         <Users className="h-4 w-4 text-[#c9a962]" />
         {customers.length} customers
       </div>
+
+      {error && (
+        <p className="mb-4 text-sm text-red-300/80">{error}</p>
+      )}
 
       <AdminCard className="overflow-hidden p-0">
         <div className="overflow-x-auto">
@@ -136,7 +99,7 @@ export default function AdminCustomersPage() {
               ))}
             </tbody>
           </table>
-          {customers.length === 0 && (
+          {customers.length === 0 && !error && (
             <p className="p-8 text-center text-sm text-white/40">
               No customers yet.
             </p>

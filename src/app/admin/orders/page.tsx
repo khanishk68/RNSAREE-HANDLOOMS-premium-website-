@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { useAdminStore, type AdminOrder, type AdminOrderStatus } from "@/lib/admin-store";
-import { useAuthStore, useOrderStore } from "@/lib/store";
+import { useEffect } from "react";
+import {
+  useAdminStore,
+  type AdminOrderStatus,
+} from "@/lib/admin-store";
 import { formatINR } from "@/lib/utils";
 import {
   AdminCard,
@@ -21,83 +23,27 @@ const STATUSES: AdminOrderStatus[] = [
 ];
 
 export default function AdminOrdersPage() {
-  const adminOrders = useAdminStore((s) => s.orders);
+  const orders = useAdminStore((s) => s.orders);
   const updateOrderStatus = useAdminStore((s) => s.updateOrderStatus);
-  const upsertOrder = useAdminStore((s) => s.upsertOrder);
-  const customerOrders = useOrderStore((s) => s.orders);
-  const updateCustomerStatus = useOrderStore((s) => s.updateStatus);
-  const user = useAuthStore((s) => s.user);
+  const loadOrders = useAdminStore((s) => s.loadOrders);
 
-  // Sync customer checkout orders into admin store
   useEffect(() => {
-    for (const o of customerOrders) {
-      const mapped: AdminOrder = {
-        id: o.id,
-        customerName: user?.name || "Store customer",
-        customerEmail: user?.email || "customer@rnsareehandlooms.com",
-        phone: o.phone,
-        address: o.address,
-        total: o.total,
-        status: o.status,
-        createdAt: o.createdAt,
-        notes: o.notes,
-        items: o.items.map((i) => ({
-          name: i.product.name,
-          quantity: i.quantity,
-          price: i.product.price,
-          image: i.product.images[0],
-        })),
-      };
-      upsertOrder(mapped);
-    }
-  }, [customerOrders, user, upsertOrder]);
+    void loadOrders();
+  }, [loadOrders]);
 
-  // Load orders saved on the server (local / non-Vercel hosts)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/orders", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (cancelled || !Array.isArray(data.orders)) return;
-        for (const o of data.orders as AdminOrder[]) {
-          upsertOrder(o);
-        }
-      } catch {
-        /* keep local */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [upsertOrder]);
-
-  const orders = useMemo(
-    () =>
-      [...adminOrders].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ),
-    [adminOrders]
+  const sorted = [...orders].sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
-  function setStatus(id: string, status: AdminOrderStatus) {
-    updateOrderStatus(id, status);
-    if (customerOrders.some((o) => o.id === id)) {
-      updateCustomerStatus(id, status);
-    }
-    void fetch("/api/orders", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status }),
-    }).then(async (res) => {
-      if (!res.ok) {
-        toast.error("Could not save status to database");
-        return;
-      }
+  async function setStatus(id: string, status: AdminOrderStatus) {
+    try {
+      await updateOrderStatus(id, status);
       toast.success(`Order ${id} → ${status}`);
-    });
+    } catch {
+      toast.error("Could not save status to database");
+      await loadOrders();
+    }
   }
 
   return (
@@ -110,13 +56,13 @@ export default function AdminOrdersPage() {
       <div className="mb-4 flex flex-wrap gap-2 text-xs text-white/40">
         {STATUSES.map((s) => (
           <span key={s} className="rounded-full bg-white/5 px-3 py-1 capitalize">
-            {s}: {orders.filter((o) => o.status === s).length}
+            {s}: {sorted.filter((o) => o.status === s).length}
           </span>
         ))}
       </div>
 
       <div className="space-y-3">
-        {orders.map((o) => (
+        {sorted.map((o) => (
           <AdminCard key={o.id}>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1">
@@ -167,7 +113,7 @@ export default function AdminOrdersPage() {
             </div>
           </AdminCard>
         ))}
-        {orders.length === 0 && (
+        {sorted.length === 0 && (
           <AdminCard>
             <p className="text-sm text-white/40">No orders yet.</p>
           </AdminCard>

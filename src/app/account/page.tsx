@@ -11,7 +11,9 @@ import {
   Mail,
   Phone,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useAuthStore, useOrderStore, type Order } from "@/lib/store";
+import { useAdminStore } from "@/lib/admin-store";
 import { formatINR } from "@/lib/utils";
 import { Reveal, SectionHeading } from "@/components/ui/reveal";
 import { BRAND } from "@/lib/data";
@@ -29,6 +31,7 @@ const statusLabel: Record<Order["status"], string> = {
 };
 
 export default function AccountPage() {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [tab, setTab] = useState<"login" | "signup">("login");
   const user = useAuthStore((s) => s.user);
@@ -37,6 +40,8 @@ export default function AccountPage() {
   const logout = useAuthStore((s) => s.logout);
   const updateProfile = useAuthStore((s) => s.updateProfile);
   const orders = useOrderStore((s) => s.orders);
+  const signInAdmin = useAdminStore((s) => s.signInAdmin);
+  const [adminBusy, setAdminBusy] = useState(false);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -62,12 +67,28 @@ export default function AccountPage() {
     );
   }
 
+  async function enterAdminIfMatch(nextEmail: string, nextPassword: string) {
+    setAdminBusy(true);
+    try {
+      const ok = await signInAdmin(nextEmail.trim(), nextPassword);
+      if (!ok) return false;
+      toast.success("Welcome back");
+      setPassword("");
+      setConfirm("");
+      router.replace("/admin");
+      return true;
+    } finally {
+      setAdminBusy(false);
+    }
+  }
+
   async function handleLogin(e: FormEvent) {
     e.preventDefault();
     if (!email.trim() || !password) {
       toast.error("Enter email and password");
       return;
     }
+    if (await enterAdminIfMatch(email, password)) return;
     const result = await login(email.trim(), password);
     if (!result.ok) {
       toast.error(result.error);
@@ -79,7 +100,12 @@ export default function AccountPage() {
 
   async function handleSignup(e: FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !password) {
+    if (!email.trim() || !password) {
+      toast.error("Please fill all fields");
+      return;
+    }
+    if (await enterAdminIfMatch(email, password)) return;
+    if (!name.trim()) {
       toast.error("Please fill all fields");
       return;
     }
@@ -355,8 +381,12 @@ export default function AccountPage() {
                           Forgot password?
                         </Link>
                       </div>
-                      <button type="submit" className="luxury-btn w-full mt-2">
-                        Sign In
+                      <button
+                        type="submit"
+                        disabled={adminBusy}
+                        className="luxury-btn w-full mt-2 disabled:opacity-60"
+                      >
+                        {adminBusy ? "Signing in…" : "Sign In"}
                       </button>
                     </motion.form>
                   ) : (

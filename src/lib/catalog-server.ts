@@ -1,5 +1,3 @@
-import { promises as fs } from "fs";
-import path from "path";
 import { prisma } from "@/lib/prisma";
 import {
   categories as seedCategories,
@@ -26,9 +24,21 @@ export type CatalogData = {
   updatedAt: string | null;
 };
 
-const catalogPath = path.join(process.cwd(), "data", "catalog.json");
+export class CatalogDbError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message);
+    this.name = "CatalogDbError";
+    if (options?.cause !== undefined) {
+      (this as Error & { cause?: unknown }).cause = options.cause;
+    }
+  }
+}
 
-function parseJsonArray(raw: string | null | undefined): string[] {
+function dbRequiredMessage(action: string) {
+  return `Could not ${action}: Postgres is required (set DATABASE_URL). catalog.json is seed/backup only.`;
+}
+
+export function parseJsonArray(raw: string | null | undefined): string[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
@@ -38,7 +48,7 @@ function parseJsonArray(raw: string | null | undefined): string[] {
   }
 }
 
-function mapProduct(row: {
+export function mapProduct(row: {
   id: string;
   name: string;
   slug: string;
@@ -82,7 +92,7 @@ function mapProduct(row: {
   };
 }
 
-function mapCategory(row: {
+export function mapCategory(row: {
   id: string;
   name: string;
   slug: string;
@@ -98,269 +108,306 @@ function mapCategory(row: {
   };
 }
 
-const emptyCatalog = (): CatalogData => ({
-  products: [],
-  categories: seedCategories.map((c) => ({ ...c })),
-  testimonials: [],
-  banners: [],
-  updatedAt: null,
-});
+export function mapTestimonial(row: {
+  id: string;
+  name: string;
+  location: string;
+  rating: number;
+  text: string;
+  image: string | null;
+  saree: string | null;
+}): Testimonial {
+  return {
+    id: row.id,
+    name: row.name,
+    location: row.location,
+    rating: row.rating,
+    text: row.text,
+    image: row.image || "",
+    saree: row.saree || "",
+  };
+}
 
-async function readCatalogFile(): Promise<CatalogData> {
-  try {
-    const raw = await fs.readFile(catalogPath, "utf8");
-    const parsed = JSON.parse(raw) as Partial<CatalogData>;
-    return {
-      products: Array.isArray(parsed.products) ? parsed.products : [],
-      categories:
-        Array.isArray(parsed.categories) && parsed.categories.length
-          ? parsed.categories
-          : seedCategories.map((c) => ({ ...c })),
-      testimonials: Array.isArray(parsed.testimonials)
-        ? parsed.testimonials
-        : [],
-      banners: Array.isArray(parsed.banners) ? parsed.banners : [],
-      updatedAt: parsed.updatedAt ?? null,
-    };
-  } catch {
-    return emptyCatalog();
+export function mapBanner(row: {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  image: string;
+  link: string | null;
+  order: number;
+  active: boolean;
+}): CatalogBanner {
+  return {
+    id: row.id,
+    title: row.title,
+    subtitle: row.subtitle || "",
+    image: row.image,
+    link: row.link || undefined,
+    order: row.order,
+    active: row.active,
+  };
+}
+
+function assertDatabaseUrl() {
+  if (!process.env.DATABASE_URL) {
+    throw new CatalogDbError(
+      "DATABASE_URL is not set. Connect Neon or Prisma Postgres before using the store."
+    );
   }
 }
 
-async function writeCatalogFile(
-  data: Omit<CatalogData, "updatedAt">
-): Promise<CatalogData> {
-  const next: CatalogData = {
-    products: data.products ?? [],
-    categories:
-      data.categories?.length > 0
-        ? data.categories
-        : seedCategories.map((c) => ({ ...c })),
-    testimonials: data.testimonials ?? [],
-    banners: data.banners ?? [],
-    updatedAt: new Date().toISOString(),
-  };
-  await fs.mkdir(path.dirname(catalogPath), { recursive: true });
-  await fs.writeFile(catalogPath, JSON.stringify(next, null, 2), "utf8");
-  return next;
-}
-
-async function readCatalogDb(): Promise<CatalogData> {
-  const [categories, products, testimonials, banners] = await Promise.all([
-    prisma.category.findMany({ orderBy: { name: "asc" } }),
-    prisma.product.findMany({
-      include: { category: true },
-      orderBy: { updatedAt: "desc" },
-    }),
-    prisma.testimonial.findMany({
-      where: { published: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.banner.findMany({ orderBy: { order: "asc" } }),
-  ]);
-
-  return {
-    products: products.map(mapProduct),
-    categories:
-      categories.length > 0
-        ? categories.map(mapCategory)
-        : seedCategories.map((c) => ({ ...c })),
-    testimonials: testimonials.map((t) => ({
-      id: t.id,
-      name: t.name,
-      location: t.location,
-      rating: t.rating,
-      text: t.text,
-      image: t.image || "",
-      saree: t.saree || "",
-    })),
-    banners: banners.map((b) => ({
-      id: b.id,
-      title: b.title,
-      subtitle: b.subtitle || "",
-      image: b.image,
-      link: b.link || undefined,
-      order: b.order,
-      active: b.active,
-    })),
-    updatedAt: new Date().toISOString(),
-  };
-}
-
-async function writeCatalogDb(
-  data: Omit<CatalogData, "updatedAt">
-): Promise<CatalogData> {
-  const categories = data.categories?.length
-    ? data.categories
-    : seedCategories.map((c) => ({ ...c }));
-
-  await prisma.$transaction(async (tx) => {
-    for (const c of categories) {
-      await tx.category.upsert({
-        where: { slug: c.slug },
-        create: {
-          id: c.id,
-          name: c.name,
-          slug: c.slug,
-          description: c.description || null,
-          banner: c.banner || null,
-        },
-        update: {
-          name: c.name,
-          description: c.description || null,
-          banner: c.banner || null,
-        },
-      });
-    }
-
-    const categoryRows = await tx.category.findMany();
-    const bySlug = new Map(categoryRows.map((c) => [c.slug, c.id]));
-    const incomingProductIds = new Set(
-      (data.products ?? []).map((p) => p.id).filter(Boolean)
-    );
-
-    const existingProducts = await tx.product.findMany({
-      select: { id: true },
-    });
-    for (const row of existingProducts) {
-      if (!incomingProductIds.has(row.id)) {
-        await tx.product.delete({ where: { id: row.id } });
-      }
-    }
-
-    for (const p of data.products ?? []) {
-      const categoryId = bySlug.get(p.category) || null;
-      await tx.product.upsert({
-        where: { slug: p.slug },
-        create: {
-          id: p.id,
-          name: p.name,
-          slug: p.slug,
-          price: p.price,
-          compareAt: p.compareAt ?? null,
-          fabric: p.fabric,
-          color: p.color,
-          occasion: p.occasion,
-          description: p.description,
-          story: p.story || null,
-          care: JSON.stringify(p.care ?? []),
-          images: JSON.stringify(p.images ?? []),
-          tags: JSON.stringify(p.tags ?? []),
-          stock: p.stock ?? 0,
-          featured: !!p.featured,
-          bestSeller: !!p.bestSeller,
-          limited: !!p.limited,
-          isNew: !!p.isNew,
-          categoryId,
-        },
-        update: {
-          name: p.name,
-          price: p.price,
-          compareAt: p.compareAt ?? null,
-          fabric: p.fabric,
-          color: p.color,
-          occasion: p.occasion,
-          description: p.description,
-          story: p.story || null,
-          care: JSON.stringify(p.care ?? []),
-          images: JSON.stringify(p.images ?? []),
-          tags: JSON.stringify(p.tags ?? []),
-          stock: p.stock ?? 0,
-          featured: !!p.featured,
-          bestSeller: !!p.bestSeller,
-          limited: !!p.limited,
-          isNew: !!p.isNew,
-          categoryId,
-        },
-      });
-    }
-
-    const incomingT = new Set((data.testimonials ?? []).map((t) => t.id));
-    const existingT = await tx.testimonial.findMany({ select: { id: true } });
-    for (const row of existingT) {
-      if (!incomingT.has(row.id)) {
-        await tx.testimonial.delete({ where: { id: row.id } });
-      }
-    }
-    for (const t of data.testimonials ?? []) {
-      await tx.testimonial.upsert({
-        where: { id: t.id },
-        create: {
-          id: t.id,
-          name: t.name,
-          location: t.location,
-          rating: t.rating,
-          text: t.text,
-          image: t.image || null,
-          saree: t.saree || null,
-          published: true,
-        },
-        update: {
-          name: t.name,
-          location: t.location,
-          rating: t.rating,
-          text: t.text,
-          image: t.image || null,
-          saree: t.saree || null,
-        },
-      });
-    }
-
-    const incomingB = new Set((data.banners ?? []).map((b) => b.id));
-    const existingB = await tx.banner.findMany({ select: { id: true } });
-    for (const row of existingB) {
-      if (!incomingB.has(row.id)) {
-        await tx.banner.delete({ where: { id: row.id } });
-      }
-    }
-    for (const b of data.banners ?? []) {
-      await tx.banner.upsert({
-        where: { id: b.id },
-        create: {
-          id: b.id,
-          title: b.title,
-          subtitle: b.subtitle || null,
-          image: b.image,
-          link: b.link || null,
-          order: b.order ?? 0,
-          active: b.active ?? true,
-        },
-        update: {
-          title: b.title,
-          subtitle: b.subtitle || null,
-          image: b.image,
-          link: b.link || null,
-          order: b.order ?? 0,
-          active: b.active ?? true,
-        },
-      });
-    }
-  });
-
-  return readCatalogDb();
-}
-
-/** Prefer Postgres; fall back to data/catalog.json when DB is down or empty. */
-export async function readCatalog(): Promise<CatalogData> {
+export async function readCatalog(opts?: {
+  forAdmin?: boolean;
+}): Promise<CatalogData> {
+  assertDatabaseUrl();
   try {
-    const fromDb = await readCatalogDb();
-    if (fromDb.products.length > 0) return fromDb;
-    const fromFile = await readCatalogFile();
-    if (fromFile.products.length > 0) return fromFile;
-    return fromDb;
+    const [categories, products, testimonials, banners] = await Promise.all([
+      prisma.category.findMany({ orderBy: { name: "asc" } }),
+      prisma.product.findMany({
+        include: { category: true },
+        orderBy: { updatedAt: "desc" },
+      }),
+      prisma.testimonial.findMany({
+        where: opts?.forAdmin ? undefined : { published: true },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.banner.findMany({
+        where: opts?.forAdmin ? undefined : { active: true },
+        orderBy: { order: "asc" },
+      }),
+    ]);
+
+    return {
+      products: products.map(mapProduct),
+      categories:
+        categories.length > 0
+          ? categories.map(mapCategory)
+          : seedCategories.map((c) => ({ ...c })),
+      testimonials: testimonials.map(mapTestimonial),
+      banners: banners.map(mapBanner),
+      updatedAt: new Date().toISOString(),
+    };
   } catch (err) {
-    console.warn("Catalog DB unavailable, using catalog.json:", err);
-    return readCatalogFile();
+    if (err instanceof CatalogDbError) throw err;
+    console.error("Catalog DB read failed:", err);
+    throw new CatalogDbError(dbRequiredMessage("load catalogue"), {
+      cause: err,
+    });
   }
 }
 
 export async function writeCatalog(
   data: Omit<CatalogData, "updatedAt">
 ): Promise<CatalogData> {
+  assertDatabaseUrl();
+  const categories = data.categories?.length
+    ? data.categories
+    : seedCategories.map((c) => ({ ...c }));
+
   try {
-    return await writeCatalogDb(data);
+    await prisma.$transaction(async (tx) => {
+      for (const c of categories) {
+        await tx.category.upsert({
+          where: { slug: c.slug },
+          create: {
+            id: c.id,
+            name: c.name,
+            slug: c.slug,
+            description: c.description || null,
+            banner: c.banner || null,
+          },
+          update: {
+            name: c.name,
+            description: c.description || null,
+            banner: c.banner || null,
+          },
+        });
+      }
+
+      const categoryRows = await tx.category.findMany();
+      const bySlug = new Map(categoryRows.map((c) => [c.slug, c.id]));
+      const incomingProductIds = new Set(
+        (data.products ?? []).map((p) => p.id).filter(Boolean)
+      );
+
+      const existingProducts = await tx.product.findMany({
+        select: { id: true },
+      });
+      for (const row of existingProducts) {
+        if (!incomingProductIds.has(row.id)) {
+          await tx.product.delete({ where: { id: row.id } });
+        }
+      }
+
+      for (const p of data.products ?? []) {
+        const categoryId = bySlug.get(p.category) || null;
+        await tx.product.upsert({
+          where: { slug: p.slug },
+          create: {
+            id: p.id,
+            name: p.name,
+            slug: p.slug,
+            price: p.price,
+            compareAt: p.compareAt ?? null,
+            fabric: p.fabric,
+            color: p.color,
+            occasion: p.occasion,
+            description: p.description,
+            story: p.story || null,
+            care: JSON.stringify(p.care ?? []),
+            images: JSON.stringify(p.images ?? []),
+            tags: JSON.stringify(p.tags ?? []),
+            stock: p.stock ?? 0,
+            featured: !!p.featured,
+            bestSeller: !!p.bestSeller,
+            limited: !!p.limited,
+            isNew: !!p.isNew,
+            categoryId,
+          },
+          update: {
+            name: p.name,
+            price: p.price,
+            compareAt: p.compareAt ?? null,
+            fabric: p.fabric,
+            color: p.color,
+            occasion: p.occasion,
+            description: p.description,
+            story: p.story || null,
+            care: JSON.stringify(p.care ?? []),
+            images: JSON.stringify(p.images ?? []),
+            tags: JSON.stringify(p.tags ?? []),
+            stock: p.stock ?? 0,
+            featured: !!p.featured,
+            bestSeller: !!p.bestSeller,
+            limited: !!p.limited,
+            isNew: !!p.isNew,
+            categoryId,
+          },
+        });
+      }
+
+      const incomingT = new Set((data.testimonials ?? []).map((t) => t.id));
+      const existingT = await tx.testimonial.findMany({ select: { id: true } });
+      for (const row of existingT) {
+        if (!incomingT.has(row.id)) {
+          await tx.testimonial.delete({ where: { id: row.id } });
+        }
+      }
+      for (const t of data.testimonials ?? []) {
+        await tx.testimonial.upsert({
+          where: { id: t.id },
+          create: {
+            id: t.id,
+            name: t.name,
+            location: t.location,
+            rating: t.rating,
+            text: t.text,
+            image: t.image || null,
+            saree: t.saree || null,
+            published: true,
+          },
+          update: {
+            name: t.name,
+            location: t.location,
+            rating: t.rating,
+            text: t.text,
+            image: t.image || null,
+            saree: t.saree || null,
+          },
+        });
+      }
+
+      const incomingB = new Set((data.banners ?? []).map((b) => b.id));
+      const existingB = await tx.banner.findMany({ select: { id: true } });
+      for (const row of existingB) {
+        if (!incomingB.has(row.id)) {
+          await tx.banner.delete({ where: { id: row.id } });
+        }
+      }
+      for (const b of data.banners ?? []) {
+        await tx.banner.upsert({
+          where: { id: b.id },
+          create: {
+            id: b.id,
+            title: b.title,
+            subtitle: b.subtitle || null,
+            image: b.image,
+            link: b.link || null,
+            order: b.order ?? 0,
+            active: b.active ?? true,
+          },
+          update: {
+            title: b.title,
+            subtitle: b.subtitle || null,
+            image: b.image,
+            link: b.link || null,
+            order: b.order ?? 0,
+            active: b.active ?? true,
+          },
+        });
+      }
+    });
+
+    return readCatalog({ forAdmin: true });
   } catch (err) {
-    console.warn("Catalog DB save failed, writing catalog.json:", err);
-    return writeCatalogFile(data);
+    if (err instanceof CatalogDbError) throw err;
+    console.error("Catalog DB save failed:", err);
+    throw new CatalogDbError(dbRequiredMessage("save catalogue"), {
+      cause: err,
+    });
   }
+}
+
+export async function resolveCategoryId(slug: string | undefined) {
+  if (!slug) return null;
+  const row = await prisma.category.findUnique({ where: { slug } });
+  return row?.id ?? null;
+}
+
+export async function uniqueProductSlug(base: string, excludeId?: string) {
+  let slug = base;
+  let n = 2;
+  while (true) {
+    const existing = await prisma.product.findUnique({ where: { slug } });
+    if (!existing || existing.id === excludeId) return slug;
+    slug = `${base}-${n}`;
+    n += 1;
+  }
+}
+
+export async function uniqueCategorySlug(base: string, excludeId?: string) {
+  let slug = base;
+  let n = 2;
+  while (true) {
+    const existing = await prisma.category.findUnique({ where: { slug } });
+    if (!existing || existing.id === excludeId) return slug;
+    slug = `${base}-${n}`;
+    n += 1;
+  }
+}
+
+export function productWriteData(
+  p: Omit<Product, "id"> & { id?: string },
+  categoryId: string | null
+) {
+  return {
+    name: p.name,
+    slug: p.slug,
+    price: p.price,
+    compareAt: p.compareAt ?? null,
+    fabric: p.fabric,
+    color: p.color,
+    occasion: p.occasion,
+    description: p.description,
+    story: p.story || null,
+    care: JSON.stringify(p.care ?? []),
+    images: JSON.stringify(p.images ?? []),
+    tags: JSON.stringify(p.tags ?? []),
+    stock: p.stock ?? 0,
+    featured: !!p.featured,
+    bestSeller: !!p.bestSeller,
+    limited: !!p.limited,
+    isNew: !!p.isNew,
+    categoryId,
+  };
 }

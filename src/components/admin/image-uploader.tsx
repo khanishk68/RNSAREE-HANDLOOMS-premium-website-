@@ -18,7 +18,11 @@ async function uploadFiles(files: FileList | File[]) {
   const list = Array.from(files);
   const form = new FormData();
   list.forEach((f) => form.append("files", f));
-  const res = await fetch("/api/upload", { method: "POST", body: form });
+  const res = await fetch("/api/upload", {
+    method: "POST",
+    body: form,
+    credentials: "include",
+  });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Upload failed");
   return data.urls as string[];

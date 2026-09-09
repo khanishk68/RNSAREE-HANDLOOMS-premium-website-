@@ -6,6 +6,7 @@ import {
   updateOrderStatusDb,
 } from "@/lib/orders-server";
 import type { AdminOrder, AdminOrderStatus } from "@/lib/admin-store";
+import { requireAdmin } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +24,9 @@ export async function GET(req: NextRequest) {
       }
       return NextResponse.json({ ok: true, order });
     }
+
+    const gate = requireAdmin(req);
+    if (gate.error) return gate.error;
 
     const orders = await listOrders();
     return NextResponse.json({ ok: true, orders });
@@ -63,6 +67,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const gate = requireAdmin(req);
+  if (gate.error) return gate.error;
+
   try {
     const body = await req.json();
     const id = body.id as string | undefined;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readCatalog, writeCatalog } from "@/lib/catalog-server";
+import { CatalogDbError, readCatalog } from "@/lib/catalog-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,17 +7,30 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const catalog = await readCatalog();
-    return NextResponse.json({ ok: true, catalog });
+    return NextResponse.json(
+      { ok: true, catalog },
+      {
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+        },
+      }
+    );
   } catch (err) {
     console.error("Catalog read failed:", err);
-    return NextResponse.json(
-      { ok: false, error: "Could not load catalogue from database" },
-      { status: 500 }
-    );
+    const message =
+      err instanceof CatalogDbError
+        ? err.message
+        : "Could not load catalogue from database";
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
 
 export async function PUT(req: NextRequest) {
+  const { requireAdmin } = await import("@/lib/admin-auth");
+  const { writeCatalog } = await import("@/lib/catalog-server");
+  const gate = requireAdmin(req);
+  if (gate.error) return gate.error;
+
   try {
     const body = await req.json();
     const catalog = await writeCatalog({
@@ -29,13 +42,10 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ ok: true, catalog });
   } catch (err) {
     console.error("Catalog save failed:", err);
-    return NextResponse.json(
-      {
-        ok: false,
-        error:
-          "Could not save catalogue to the database. Check DATABASE_URL and try again.",
-      },
-      { status: 500 }
-    );
+    const message =
+      err instanceof CatalogDbError
+        ? err.message
+        : "Could not save catalogue to the database. Check DATABASE_URL and try again.";
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

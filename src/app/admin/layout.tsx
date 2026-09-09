@@ -39,25 +39,24 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const admin = useAdminStore((s) => s.admin);
   const hydrated = useAdminStore((s) => s.hydrated);
-  const setHydrated = useAdminStore((s) => s.setHydrated);
+  const restoreSession = useAdminStore((s) => s.restoreSession);
   const adminLogout = useAdminStore((s) => s.adminLogout);
   const loadFromServer = useAdminStore((s) => s.loadFromServer);
+  const loadOrders = useAdminStore((s) => s.loadOrders);
   const publishCatalog = useAdminStore((s) => s.publishCatalog);
   const publishStatus = useAdminStore((s) => s.publishStatus);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isLogin = pathname === "/admin/login";
 
   useEffect(() => {
-    if (useAdminStore.persist.hasHydrated()) {
-      setHydrated(true);
-      void loadFromServer();
-    }
-    const unsub = useAdminStore.persist.onFinishHydration(() => {
-      setHydrated(true);
-      void loadFromServer();
-    });
-    return unsub;
-  }, [setHydrated, loadFromServer]);
+    void restoreSession();
+  }, [restoreSession]);
+
+  useEffect(() => {
+    if (!admin) return;
+    void loadFromServer();
+    void loadOrders();
+  }, [admin, loadFromServer, loadOrders]);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -68,7 +67,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated || isLogin) return;
-    if (!admin) router.replace("/admin/login");
+    if (!admin) router.replace("/account");
   }, [admin, hydrated, isLogin, router]);
 
   if (isLogin) {
@@ -94,10 +93,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   async function onPublish() {
     const ok = await publishCatalog();
-    if (ok) toast.success("Catalogue published to the live website");
+    if (ok) toast.success("Catalogue saved to the live database");
     else
       toast.error(
-        "Publish failed. On Vercel, publish locally, commit data/catalog.json, then redeploy."
+        "Could not save to Postgres. Check DATABASE_URL and try again."
       );
   }
 
@@ -161,8 +160,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <button
           type="button"
           onClick={() => {
-            adminLogout();
-            router.replace("/admin/login");
+            void adminLogout().then(() => router.replace("/account"));
           }}
           className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-white/50 transition hover:bg-[#4a0e1f]/40 hover:text-[#e8d5a3]"
         >
@@ -234,7 +232,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 ? "Published"
                 : publishStatus === "error"
                   ? "Retry publish"
-                  : "Publish live"}
+                  : "Save live"}
           </button>
           <span className="hidden rounded-full bg-[#4a0e1f]/50 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-[#c9a962] ring-1 ring-[#c9a962]/25 sm:inline">
             Admin

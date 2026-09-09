@@ -33,21 +33,29 @@ export default function AdminTestimonialsPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(empty());
 
-  function save() {
+  async function save() {
     if (!form.name.trim() || !form.text.trim()) {
       toast.error("Name and text are required");
       return;
     }
-    addTestimonial(form);
-    toast.success("Testimonial added");
-    setOpen(false);
-    setForm(empty());
+    try {
+      await addTestimonial(form);
+      toast.success("Testimonial added");
+      setOpen(false);
+      setForm(empty());
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save testimonial");
+    }
   }
 
-  function remove(id: string, name: string) {
+  async function remove(id: string, name: string) {
     if (!confirm(`Delete testimonial from ${name}?`)) return;
-    deleteTestimonial(id);
-    toast.success("Deleted");
+    try {
+      await deleteTestimonial(id);
+      toast.success("Deleted");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not delete");
+    }
   }
 
   return (

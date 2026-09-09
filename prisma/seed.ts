@@ -2,6 +2,7 @@
  * Seed Postgres from data/catalog.json
  * Run: npx tsx prisma/seed.ts
  */
+import "dotenv/config";
 import { readFileSync } from "fs";
 import path from "path";
 import { PrismaClient } from "@prisma/client";

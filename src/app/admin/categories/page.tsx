@@ -63,7 +63,7 @@ export default function AdminCategoriesPage() {
     setOpen(true);
   }
 
-  function save() {
+  async function save() {
     if (!form.name.trim()) {
       toast.error("Name is required");
       return;
@@ -72,20 +72,28 @@ export default function AdminCategoriesPage() {
       ...form,
       slug: form.slug || slugify(form.name),
     };
-    if (editingId) {
-      updateCategory(editingId, payload);
-      toast.success("Category updated");
-    } else {
-      addCategory(payload);
-      toast.success("Category added");
+    try {
+      if (editingId) {
+        await updateCategory(editingId, payload);
+        toast.success("Category updated");
+      } else {
+        await addCategory(payload);
+        toast.success("Category added");
+      }
+      setOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save category");
     }
-    setOpen(false);
   }
 
-  function remove(id: string, name: string) {
+  async function remove(id: string, name: string) {
     if (!confirm(`Delete category “${name}”?`)) return;
-    deleteCategory(id);
-    toast.success("Category deleted");
+    try {
+      await deleteCategory(id);
+      toast.success("Category deleted");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not delete category");
+    }
   }
 
   return (

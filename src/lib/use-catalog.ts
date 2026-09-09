@@ -7,7 +7,7 @@ import {
   type Category,
   type Testimonial,
 } from "@/lib/data";
-import { useAdminStore, type AdminBanner } from "@/lib/admin-store";
+import type { AdminBanner } from "@/lib/admin-store";
 
 type LiveBanner = {
   id: string;
@@ -17,89 +17,77 @@ type LiveBanner = {
 };
 
 /**
- * Storefront catalogue — prefers published server catalogue (`/api/catalog`)
- * so every visitor sees the same products after Admin publishes.
+ * Storefront catalogue from Postgres via `/api/catalog`.
+ * Refetches when admin saves, when the tab is focused, and every 15 seconds.
  */
 export function useCatalog() {
-  const adminProducts = useAdminStore((s) => s.products);
-  const adminCategories = useAdminStore((s) => s.categories);
-  const adminTestimonials = useAdminStore((s) => s.testimonials);
-  const adminBanners = useAdminStore((s) => s.banners);
-  const adminHydrated = useAdminStore((s) => s.hydrated);
-
-  const [serverProducts, setServerProducts] = useState<Product[] | null>(null);
-  const [serverCategories, setServerCategories] = useState<Category[] | null>(
-    null
+  const [serverProducts, setServerProducts] = useState<Product[]>([]);
+  const [serverCategories, setServerCategories] = useState<Category[]>(
+    seedCategories
   );
-  const [serverTestimonials, setServerTestimonials] = useState<
-    Testimonial[] | null
-  >(null);
-  const [serverBanners, setServerBanners] = useState<AdminBanner[] | null>(
-    null
+  const [serverTestimonials, setServerTestimonials] = useState<Testimonial[]>(
+    []
   );
+  const [serverBanners, setServerBanners] = useState<AdminBanner[]>([]);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+
+    async function load() {
       try {
         const res = await fetch("/api/catalog", { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          const c = data.catalog;
-          if (!cancelled && c) {
-            setServerProducts(c.products ?? []);
-            setServerCategories(
-              c.categories?.length ? c.categories : seedCategories
-            );
-            setServerTestimonials(c.testimonials ?? []);
-            setServerBanners(c.banners ?? []);
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          if (!cancelled) {
+            setError(data.error || "Could not load catalogue");
           }
+          return;
+        }
+        const c = data.catalog;
+        if (!cancelled && c) {
+          setServerProducts(c.products ?? []);
+          setServerCategories(
+            c.categories?.length ? c.categories : seedCategories
+          );
+          setServerTestimonials(c.testimonials ?? []);
+          setServerBanners(c.banners ?? []);
+          setError(null);
         }
       } catch {
-        /* fall back below */
+        if (!cancelled) setError("Could not load catalogue");
       } finally {
         if (!cancelled) setReady(true);
       }
-    })();
+    }
+
+    void load();
+    const interval = window.setInterval(() => {
+      void load();
+    }, 15000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    const onUpdated = () => {
+      void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("rn-catalog-updated", onUpdated);
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("rn-catalog-updated", onUpdated);
     };
   }, []);
 
-  // Prefer server catalogue; while admin is editing in same browser, prefer admin store if richer
-  const products =
-    serverProducts !== null
-      ? serverProducts.length >= adminProducts.length
-        ? serverProducts
-        : adminProducts.length
-          ? adminProducts
-          : serverProducts
-      : adminProducts;
-
-  const categories =
-    (serverCategories && serverCategories.length
-      ? serverCategories
-      : adminCategories.length
-        ? adminCategories
-        : seedCategories) ?? seedCategories;
-
-  const testimonials =
-    serverTestimonials !== null
-      ? serverTestimonials.length
-        ? serverTestimonials
-        : adminTestimonials
-      : adminTestimonials;
-
-  const bannersSource =
-    serverBanners !== null
-      ? serverBanners.length
-        ? serverBanners
-        : adminBanners
-      : adminBanners;
+  const products = serverProducts;
+  const categories = serverCategories;
+  const testimonials = serverTestimonials;
 
   const banners: LiveBanner[] = useMemo(() => {
-    return [...bannersSource]
+    return [...serverBanners]
       .filter((b) => b.active && b.image)
       .sort((a, b) => a.order - b.order)
       .map((b) => ({
@@ -108,16 +96,15 @@ export function useCatalog() {
         title: b.title,
         subtitle: b.subtitle || "",
       }));
-  }, [bannersSource]);
-
-  const hydrated = ready && adminHydrated;
+  }, [serverBanners]);
 
   return {
     products,
     categories,
     testimonials,
     banners,
-    hydrated,
+    hydrated: ready,
+    error,
     getProductBySlug: (slug: string) => products.find((p) => p.slug === slug),
     getProductsByCategory: (slug: string) => {
       if (slug === "new-arrivals") return products.filter((p) => p.isNew);

@@ -54,25 +54,33 @@ export default function AdminBannersPage() {
     setOpen(true);
   }
 
-  function save() {
+  async function save() {
     if (!form.title.trim() || !form.image.trim()) {
       toast.error("Title and image are required");
       return;
     }
-    if (editingId) {
-      updateBanner(editingId, form);
-      toast.success("Banner updated");
-    } else {
-      addBanner(form);
-      toast.success("Banner added");
+    try {
+      if (editingId) {
+        await updateBanner(editingId, form);
+        toast.success("Banner updated");
+      } else {
+        await addBanner(form);
+        toast.success("Banner added");
+      }
+      setOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save banner");
     }
-    setOpen(false);
   }
 
-  function remove(id: string) {
+  async function remove(id: string) {
     if (!confirm("Delete this banner?")) return;
-    deleteBanner(id);
-    toast.success("Banner deleted");
+    try {
+      await deleteBanner(id);
+      toast.success("Banner deleted");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not delete banner");
+    }
   }
 
   return (

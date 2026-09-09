@@ -93,7 +93,7 @@ export default function AdminProductsPage() {
     setOpen(true);
   }
 
-  function save() {
+  async function save() {
     if (!form.name.trim() || !form.price) {
       toast.error("Name and price are required");
       return;
@@ -105,20 +105,28 @@ export default function AdminProductsPage() {
       care: form.care.filter((c) => c.trim()),
       tags: form.tags,
     };
-    if (editingId) {
-      updateProduct(editingId, payload);
-      toast.success("Product updated");
-    } else {
-      addProduct(payload);
-      toast.success("Product added");
+    try {
+      if (editingId) {
+        await updateProduct(editingId, payload);
+        toast.success("Product updated");
+      } else {
+        await addProduct(payload);
+        toast.success("Product added");
+      }
+      setOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save product");
     }
-    setOpen(false);
   }
 
-  function remove(id: string, name: string) {
+  async function remove(id: string, name: string) {
     if (!confirm(`Delete “${name}”?`)) return;
-    deleteProduct(id);
-    toast.success("Product deleted");
+    try {
+      await deleteProduct(id);
+      toast.success("Product deleted");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not delete product");
+    }
   }
 
   return (
